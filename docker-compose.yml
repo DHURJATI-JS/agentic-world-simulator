@@ -1,0 +1,79 @@
+name: worldsim
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: worldsim
+      POSTGRES_PASSWORD: worldsim
+      POSTGRES_DB: worldsim
+    ports:
+      - "127.0.0.1:5434:5432"   # host 5434 (5432/5433 are used by other local projects)
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U worldsim -d worldsim"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  # "Local Gemma" - second tier of the AI hierarchy (and EmbeddingGemma for pgvector)
+  ollama:
+    image: ollama/ollama:0.40.15
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    environment:
+      OLLAMA_KEEP_ALIVE: 30m
+      OLLAMA_CONTEXT_LENGTH: 12288   # prompts (<= ~10k tokens incl. answer) must not be silently truncated
+      OLLAMA_NUM_PARALLEL: 2         # matches AI_MAX_CONCURRENCY, so requests don't queue inside Ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+    restart: unless-stopped
+
+  # One-shot: downloads the Gemma chat + embedding models into the ollama volume (first run only)
+  ollama-pull:
+    image: ollama/ollama:0.40.15
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c", "ollama pull ${LOCAL_GEMMA_MODEL:-gemma3:4b} && ollama pull ${EMBEDDING_MODEL:-embeddinggemma}"]
+    restart: "no"
+
+  app:
+    build: .
+    environment:
+      APP_HOST: 0.0.0.0
+      DATABASE_URL: postgresql+asyncpg://worldsim:worldsim@db:5432/worldsim
+      OPENAI_GEMMA_URL: ${OPENAI_GEMMA_URL:-http://192.168.0.101:8000/v1}
+      OPENAI_GEMMA_API_KEY: ${OPENAI_GEMMA_API_KEY:-}
+      OPENAI_GEMMA_MODEL: ${OPENAI_GEMMA_MODEL:-gemma}
+      LOCAL_GEMMA_URL: http://ollama:11434/v1
+      LOCAL_GEMMA_MODEL: ${LOCAL_GEMMA_MODEL:-gemma3:4b}
+      EMBEDDING_URL: http://ollama:11434/v1
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-embeddinggemma}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-}
+    volumes:
+      # edit config.py on the host, then: docker compose restart app
+      - ./config.py:/code/config.py:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    # If no AI provider answers at startup the app exits ("AI is not present") - no restart loop.
+    restart: "no"
+
+volumes:
+  pgdata:
+  ollama:

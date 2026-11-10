@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agentic World Simulator</title>
+  <script>(function(){try{var t=localStorage.getItem('worldsim-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/>
+      </svg>
+      <span>Agentic World Simulator</span>
+    </div>
+    <nav class="views" aria-label="Views">
+      <a href="#globe" data-view="globe">Globe</a>
+      <a href="#sim" data-view="sim">Simulation lab</a>
+      <a href="#insights" data-view="insights">AI insights</a>
+      <a href="#tasks" data-view="tasks">Tasks</a>
+      <a href="#profile" data-view="profile">Startup &amp; system</a>
+    </nav>
+    <div class="top-actions">
+      <button class="pill" id="ai-pill" title="AI failover chain"><span class="dot muted"></span><span>AI …</span></button>
+      <button class="btn icon-btn ghost" id="bell" aria-label="Notifications" title="Notifications">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span class="badge" id="bell-count" hidden>0</span>
+      </button>
+      <button class="btn icon-btn ghost" id="theme-toggle" aria-label="Toggle light/dark theme" title="Light / dark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
+      </button>
+      <button class="btn sm ghost" id="logout">Log out</button>
+    </div>
+    <div class="popover" id="ai-popover" hidden></div>
+  </header>
+
+  <div class="banner" id="firstrun-banner" hidden>
+    <strong>First run</strong>
+    <span id="firstrun-text">Collecting global headlines from reliable sources (CNN, The Times of India, The New York Times, BBC …)</span>
+    <div class="progress grow" style="max-width:260px"><i id="firstrun-progress" style="width:3%"></i></div>
+  </div>
+
+  <main>
+    <!-- GLOBE -->
+    <section class="view" id="view-globe">
+      <aside class="panel left-panel">
+        <div class="tabs" role="tablist">
+          <button data-tab="brief" class="active">Brief</button>
+          <button data-tab="markets">Markets</button>
+          <button data-tab="hazards">Hazards</button>
+          <button data-tab="news">News</button>
+        </div>
+        <div class="panel-body" id="tab-brief"></div>
+        <div class="panel-body" id="tab-markets" hidden></div>
+        <div class="panel-body" id="tab-hazards" hidden></div>
+        <div class="panel-body" id="tab-news" hidden></div>
+      </aside>
+      <div class="globe-wrap">
+        <div id="globe" aria-label="Interactive globe"></div>
+        <div class="globe-controls">
+          <label class="small muted" for="layer-select">Colour by</label>
+          <select id="layer-select">
+            <option value="market_1d">Market move today</option>
+            <option value="market_1m">Market move, 1 month</option>
+            <option value="news_sentiment">News sentiment (48h)</option>
+            <option value="news_volume">News volume (48h)</option>
+            <option value="sim_conf">Simulated consumer confidence</option>
+          </select>
+          <label class="check small"><input type="checkbox" id="toggle-hazards" checked> Hazards</label>
+          <label class="check small"><input type="checkbox" id="toggle-satellite"> Satellite</label>
+          <label class="check small"><input type="checkbox" id="toggle-rotate"> Rotate</label>
+        </div>
+        <div class="globe-legend" id="globe-legend"></div>
+      </div>
+      <aside class="panel right-panel" id="right-panel">
+        <div class="panel-body" id="right-body"></div>
+      </aside>
+    </section>
+
+    <!-- SIMULATION LAB -->
+    <section class="view" id="view-sim">
+      <div class="page">
+        <div class="page-cols">
+          <div>
+            <h2>Run a simulation</h2>
+            <div class="card">
+              <label class="field"><span>Scenario</span><select id="sim-preset"></select></label>
+              <p class="small muted" id="sim-preset-desc"></p>
+              <div class="grid-2">
+                <label class="field"><span>Consumer agents</span><input type="number" id="sim-consumers" min="5000" step="10000"></label>
+                <label class="field"><span>Days (ticks)</span><input type="number" id="sim-ticks" min="20"></label>
+                <label class="field"><span>Worker shards (0 = auto)</span><input type="number" id="sim-shards" min="0" max="32" value="0"></label>
+                <label class="field"><span>Random seed</span><input type="number" id="sim-seed" value="42"></label>
+              </div>
+              <label class="check small"><input type="checkbox" id="sim-compare"> Compare with a baseline run (same seed)</label>
+              <h4 style="margin:12px 0 6px">Events</h4>
+              <div id="sim-events"></div>
+              <div class="row" style="margin-top:6px">
+                <button class="btn sm" id="sim-add-event">+ Add event</button>
+                <span class="grow"></span>
+                <button class="btn primary" id="sim-run">Run simulation</button>
+              </div>
+              <p class="small muted" style="margin-top:8px">Runs in the background on worker processes; you'll get a live notification when it finishes.</p>
+            </div>
+            <h2 style="margin-top:18px">Calibration against real data</h2>
+            <div class="card">
+              <p class="small muted" style="margin-top:0">Fits each market model to its real index (volatility, fat tails, volatility clustering) by the method of simulated moments.</p>
+              <button class="btn sm" id="calibrate-btn">Calibrate all market models</button>
+              <div id="calibrations" style="margin-top:10px"></div>
+            </div>
+            <h2 style="margin-top:18px">Runs</h2>
+            <div id="sim-runs"></div>
+          </div>
+          <div id="sim-detail"><div class="empty">Pick a scenario and run it, or open a previous run.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INSIGHTS -->
+    <section class="view" id="view-insights">
+      <div class="page">
+        <div class="row wrap" style="margin-bottom:12px">
+          <h2 style="margin:0">AI insights</h2>
+          <span class="grow"></span>
+          <select id="insight-kind" style="width:auto">
+            <option value="">All kinds</option>
+            <option value="daily_brief">Daily brief</option>
+            <option value="market_outlook">Market outlook</option>
+            <option value="region_analysis">Region analysis</option>
+            <option value="geo_impact">Geographic impact</option>
+            <option value="risk_alert">Risk alert</option>
+            <option value="persona_pulse">How people react</option>
+            <option value="simulation_report">Simulation report</option>
+          </select>
+          <input type="search" id="insight-search" placeholder="Semantic search…" style="width:240px">
+        </div>
+        <div id="insight-list"></div>
+      </div>
+    </section>
+
+    <!-- TASKS -->
+    <section class="view" id="view-tasks">
+      <div class="page">
+        <div class="row" style="margin-bottom:12px"><h2 style="margin:0">Background tasks</h2><span class="grow"></span><span class="small muted" id="task-counts"></span></div>
+        <div class="card" style="padding:0"><div class="table-scroll" style="max-height:none"><table class="data" id="task-table"></table></div></div>
+      </div>
+    </section>
+
+    <!-- PROFILE & SYSTEM -->
+    <section class="view" id="view-profile">
+      <div class="page">
+        <div class="page-cols">
+          <div>
+            <h2>Your startup</h2>
+            <div class="card" id="profile-form-card"></div>
+          </div>
+          <div>
+            <h2>AI failover chain</h2>
+            <div class="card" id="ai-chain"></div>
+            <h2 style="margin-top:18px">Schedule</h2>
+            <div class="card" id="schedule"></div>
+            <h2 style="margin-top:18px">Reliable data sources</h2>
+            <div class="card" id="sources"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toasts" aria-live="polite"></div>
+  <aside class="drawer" id="notif-drawer" hidden>
+    <div class="row" style="padding:12px 14px;border-bottom:1px solid var(--border)">
+      <h3 class="grow">Notifications</h3>
+      <button class="btn sm" id="notif-read-all">Mark all read</button>
+      <button class="btn sm ghost" id="notif-close">Close</button>
+    </div>
+    <div class="panel-body" id="notif-list"></div>
+  </aside>
+
+  <div class="overlay" id="ai-lock" hidden>
+    <div class="modal lock" style="padding:28px">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="color:var(--critical)"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>
+      <h1>AI is not present</h1>
+      <p class="muted">None of the AI tiers is answering, so the simulator is paused. It retries automatically and unlocks as soon as one tier responds.</p>
+      <div id="ai-lock-detail"></div>
+      <button class="btn" id="ai-recheck">Check again now</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="onboarding" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <div class="grow">
+          <h2>Tell the AI about your startup</h2>
+          <p class="small muted" style="margin:4px 0 0">Insights are filtered to what you can actually do — a startup that doesn't sell products won't be told to ship them.</p>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="onb-chat-wrap">
+          <div class="chat" id="onb-chat"></div>
+          <form class="row" id="onb-form" style="margin-top:10px">
+            <input type="text" id="onb-input" placeholder="Type your answer…" maxlength="2000" autocomplete="off">
+            <button class="btn primary" type="submit" id="onb-send">Send</button>
+          </form>
+          <p class="small" style="margin:10px 0 0"><a href="#" id="onb-form-link">Fill in a form instead</a></p>
+        </div>
+        <div id="onb-confirm" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="modal" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <div class="grow" id="modal-head"></div>
+        <button class="btn sm ghost" id="modal-close">Close</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="/static/vendor/chart.umd.min.js"></script>
+  <script src="/static/vendor/globe.gl.min.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/charts.js"></script>
+  <script src="/static/js/globe.js"></script>
+  <script src="/static/js/render.js"></script>
+  <script src="/static/js/onboarding.js"></script>
+  <script src="/static/js/sim.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Agentic World Simulator</title>
+  <script>(function(){try{var t=localStorage.getItem('worldsim-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <form class="login-card" id="login-form" autocomplete="on">
+      <div class="brand" style="margin-bottom:6px">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/>
+        </svg>
+        Agentic World Simulator
+      </div>
+      <p class="muted small" style="margin:0 0 18px">Local admin sign-in. Accounts are configured in <code>config.py</code>.</p>
+      <label class="field"><span>Username</span><input type="text" name="username" autocomplete="username" required autofocus></label>
+      <label class="field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required></label>
+      <p id="login-error" class="small" style="color:var(--down-text);min-height:18px;margin:4px 0 10px"></p>
+      <button class="btn primary" type="submit" style="width:100%;justify-content:center">Sign in</button>
+    </form>
+  </div>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target, err = document.getElementById('login-error');
+      err.textContent = '';
+      try {
+        const r = await fetch('/api/auth/login', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-WorldSim': '1' },
+          body: JSON.stringify({ username: form.username.value, password: form.password.value })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) { err.textContent = data.detail || 'Sign-in failed.'; return; }
+        location.href = '/';
+      } catch (ex) { err.textContent = 'Server not reachable.'; }
+    });
+  </script>
+</body>
+</html>

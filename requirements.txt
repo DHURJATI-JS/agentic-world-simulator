@@ -1,0 +1,11 @@
+fastapi==0.162.2
+uvicorn==0.54.0
+sqlalchemy[asyncio]==2.1.8
+asyncpg==0.32.0
+pgvector==0.5.1
+openai==3.48.0
+anthropic==2.7.0
+httpx==0.28.1
+feedparser==6.0.14
+numpy==2.5.4
+itsdangerous==2.2.0
